@@ -17,7 +17,7 @@ sysbench --db-driver=pgsql \
     --pgsql-db=sbtest \
     --tables=250 --table-size=25000 \
     --threads=N --time=300 --percentile=95 \
-    --report-interval=1 \
+    --report-interval=10 \
     --forced-shutdown \ 
     --range_selects=0 --skip-trx=1 \
     ./oltp_read_only.lua run
@@ -29,7 +29,7 @@ sysbench --db-driver=pgsql \
     --pgsql-db=sbtest \
     --tables=250 --table-size=25000 \
     --threads=N --time=300 --percentile=95 \
-    --report-interval=1 \
+    --report-interval=10 \
     --forced-shutdown \
     ./oltp_write_only.lua run
 
@@ -40,7 +40,7 @@ sysbench --db-driver=pgsql \
     --pgsql-db=sbtest \
     --tables=250 --table-size=25000 \
     --threads=N --time=300 --percentile=95 \
-    --report-interval=1 \
+    --report-interval=10 \
     --forced-shutdown \ 
     ./oltp_read_write.lua run
 
