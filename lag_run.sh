@@ -18,7 +18,7 @@ usage() {
   -U, --user USER        PG 用户（默认 $PGUSER 或 postgres）
   -W, --password PWD     PG 密码（默认 $PGPASSWORD）
   -d, --db DB            库名（默认 $PGDATABASE 或 postgres）
-  -i, --interval SEC     每 key 间隔秒（默认 0.5）
+  -i, --interval SEC     每 key 间隔秒（默认 0.02）
   -t, --timeout MS       单 key 等待超时 ms（默认 320000）
   -L, --label LABEL      标签（默认 lag_<pid>）
   -o, --outdir DIR       输出目录（默认 ./lag_out）
@@ -33,7 +33,7 @@ PORT=5432; MPORT=""; SPORT=""
 DB_USER="${PGUSER:-postgres}"
 DB_PASS="${PGPASSWORD:-}"
 DB_NAME="${PGDATABASE:-postgres}"
-INTERVAL=0.5
+INTERVAL=0.02
 TIMEOUT_MS=320000
 LABEL="lag_$$"
 OUTDIR="./lag_out"
@@ -83,11 +83,15 @@ DEADLINE=$(( $(date +%s) + DURATION ))
 export PGPASSWORD="$DB_PASS"
 export PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-10}"
 
+# 清空本轮 label 的旧输出文件（lag_run 全程追加写，不先清会混入上一轮样本）
+: > "$LOG"; : > "$MASTER_FILE"; : > "$DELAY_FILE"; : > "$STATS_TXT"
+
 say() { echo "$*" | tee -a "$LOG"; }
 
-# 单 key 备机握手（fork 后台子 shell）：busy-wait 等该 key 出现，拿到后打 t_replica 并算 lag 写日志
+# 单 key 备机握手（fork 后台子 shell）：busy-wait 等该 key 出现，拿到后打 t_replica 写 delay 文件
+#    （不在 fork 里算 lag、也不读 master 文件——避免与主进程写 t_master 的竞态；百分位统一由 lag_stats.sh 算）
 lag_check_one() {  # $1=key
-    local key=$1 rc result t_replica t_master lag
+    local key=$1 rc result t_replica
     result=$("$BIN"/psql -h"$SLAVE" -p"$SPORT" -U"$DB_USER" -d"$DB_NAME" \
         -t -A -v ON_ERROR_STOP=1 \
         -c "SET statement_timeout = $TIMEOUT_MS; SELECT wait_lag_test_key($key)" 2>&1)
@@ -95,11 +99,6 @@ lag_check_one() {  # $1=key
     if [ "$rc" -eq 0 ]; then
         t_replica=$(date +%s%N | cut -c1-13)
         echo "$key $t_replica" >> "$DELAY_FILE"
-        t_master=$(awk -v k="$key" '$1==k{print $2}' "$MASTER_FILE" 2>/dev/null | tail -1)
-        if [ -n "$t_master" ]; then
-            lag=$(( t_replica - t_master )); [ "$lag" -lt 0 ] && lag=0
-            echo "[lag] key=$key lag=${lag}ms"
-        fi
     else
         echo "$key TIMEOUT" >> "$DELAY_FILE"
         echo "[lag] key=$key TIMEOUT"
