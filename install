@@ -1,0 +1,5 @@
+sudo yum install -y postgresql18
+
+wget https://github.com/TPC-Council/HammerDB/releases/download/v6.0/HammerDB-6.0-Linux.tar.gz
+tar -zxf HammerDB-6.0-Linux.tar.gz
+rm -f HammerDB-6.0-Linux.tar.gz
