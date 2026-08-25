@@ -18,7 +18,7 @@ diset connection pg_host "$server_ip"
 diset connection pg_port "5432"
 
 diset tpch pg_tpch_user "root"
-diset tpch pg_tpch_pass "Huawei@234"
+diset tpch pg_tpch_pass "Taurus_123"
 diset tpch pg_tpch_dbase "tpchtest"
 
 diset tpch pg_degree_of_parallel 1

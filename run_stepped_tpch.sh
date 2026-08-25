@@ -5,11 +5,11 @@
 # ==============================================================================
 
 # ----------------- 1. 基础环境配置 -----------------
-SERVER_IP="192.168.0.30"
+SERVER_IP="192.168.200.242"   # 集群 endpoint(VIP，指向主)
 DB_PORT="5432"
 DB_USER="root"
 DB_NAME="tpchtest"
-export PGPASSWORD="Huawei@234"
+export PGPASSWORD="Taurus_123"
 
 # 自动定位当前脚本目录
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -25,9 +25,14 @@ RESULT_FILE="$SCRIPT_DIR/tpch_benchmark_result.txt"
 
 # ----------------- 3. 前置校验 -----------------
 if [ ! -f "./hammerdbcli" ]; then
-    echo "错误: 请将本脚本放在 HammerDB-6.0 解压目录下运行 (未找到 ./hammerdbcli)"
+    echo "错误: 请将本脚本放在 HammerDB 解压目录下运行 (未找到 ./hammerdbcli)"
     exit 1
 fi
+
+# ----------------- 步骤 0a: 重建 ${DB_NAME} 库（干净起点；HammerDB buildschema 不建库，需先建好）-----------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] 重建数据库 ${DB_NAME}（drop + create）..."
+psql -h $SERVER_IP -p $DB_PORT -U $DB_USER -d postgres -c "DROP DATABASE IF EXISTS ${DB_NAME} WITH (FORCE);"
+psql -h $SERVER_IP -p $DB_PORT -U $DB_USER -d postgres -c "CREATE DATABASE ${DB_NAME};"
 
 # ----------------- 步骤 0: 构建数据库结构并导数据 -----------------
 if [ -f "$TCL_BUILD_SCRIPT" ]; then
