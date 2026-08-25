@@ -1,7 +1,57 @@
-sudo yum install -y postgresql18
+# 安装全部依赖（一次性）
+yum install -y make automake libtool gcc git unzip pkgconfig libaio-devel postgresql-devel postgresql18 nscd
 
-wget https://github.com/TPC-Council/HammerDB/releases/download/v6.0/HammerDB-6.0-Linux.tar.gz
-tar -zxf HammerDB-6.0-Linux.tar.gz
-rm -f HammerDB-6.0-Linux.tar.gz
+# 下载并解压 sysbench 1.0.18
+wget -c https://github.com/akopytov/sysbench/archive/1.0.18.zip
+unzip -q 1.0.18.zip
+cd sysbench-1.0.18
 
-yum install -y nscd
+# 把 zip 自带的旧 LuaJIT（2.1.0-beta2）换成上游 v2.1 最新
+rm -rf third_party/luajit/luajit
+git clone -b v2.1 https://github.com/LuaJIT/LuaJIT.git third_party/luajit/luajit
+
+# 构建 sysbench（启用 PG、禁用 MySQL）
+./autogen.sh
+./configure --with-pgsql --without-mysql
+make -j16
+make install
+sysbench --version
+
+# 清理 sysbench 构建残留并回到上级目录
+cd ..
+rm -rf sysbench-1.0.18 1.0.18.zip
+
+# 下载并解压 HammerDB 6.0（Linux 包按 OS 分；CentOS/RHEL 用 RHEL9 包，需 glibc 2.34+ 即 Stream9。
+#   Stream8(glibc 2.28) 跑不了 6.0 prebuilt，得换 4.12 的 generic 包或换 Stream9 机器）
+wget https://github.com/TPC-Council/HammerDB/releases/download/v6.0/HammerDB-6.0-Prod-Lin-RHEL9.tar.gz
+tar -zxf HammerDB-6.0-Prod-Lin-RHEL9.tar.gz
+rm -f HammerDB-6.0-Prod-Lin-RHEL9.tar.gz
+
+# ---------- BenchmarkSQL 5.0（TPC-C 测试，第二个场景；装在当前目录，目录保留不删）----------
+# 独立依赖：JDK + ant（ant 编译要 javac）。优先 java-1.8.0（5.0 原生目标，CentOS7/Stream8 有）；Stream9 没 java-8 再回退 java-17。
+yum install -y ant java-1.8.0-openjdk-devel || yum install -y ant java-17-openjdk-devel || yum install -y ant java-11-openjdk-devel
+
+wget -O benchmarksql-5.0.zip "https://sourceforge.net/projects/benchmarksql/files/latest/download"
+# SF 有时返回 HTML 拦截页，校验下是不是真 zip
+if ! unzip -t benchmarksql-5.0.zip >/dev/null 2>&1; then
+  echo "下载的不是有效 zip（可能 SF 拦截页）。浏览器打开 https://sourceforge.net/projects/benchmarksql/files/latest/download 手动下载，改名 benchmarksql-5.0.zip 放当前目录后继续。"
+  exit 1
+fi
+unzip -q benchmarksql-5.0.zip
+rm -f benchmarksql-5.0.zip
+cd benchmarksql-5.0
+
+# PG JDBC 驱动：自带的是老版 postgresql-9.3-1102.jdbc41.jar（2014，JDBC41/Java7），
+# 连 PG18 + Java11 易出问题，换成现代 42.7.x（支持 Java8-17 + PG18）。
+# 驱动按库分目录放 lib/postgres/，并删掉自带旧版避免两个版本在 classpath 冲突。
+if wget -O lib/postgres/postgresql-42.7.3.jar https://jdbc.postgresql.org/download/postgresql-42.7.3.jar; then
+  rm -f lib/postgres/postgresql-9.3-*.jar
+else
+  echo "警告: 现代 PG JDBC 下载失败，保留自带旧版: $(ls lib/postgres/ 2>/dev/null)"
+fi
+
+# 编译（产出 dist/BenchmarkSQL-5.0.jar；run 脚本在 ./run/，JDBC 驱动在 ./lib/postgres/）
+ant
+
+echo "BenchmarkSQL 安装完成：run 脚本在 $(pwd)/run/（props.pg 在此），JDBC 在 $(pwd)/lib/postgres/"
+cd - >/dev/null
