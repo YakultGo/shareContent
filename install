@@ -2,8 +2,8 @@
 yum install -y make automake libtool gcc git unzip pkgconfig libaio-devel postgresql-devel postgresql18 nscd
 
 # 下载并解压 sysbench 1.0.18
-wget -c https://github.com/akopytov/sysbench/archive/1.0.18.zip
-unzip -q 1.0.18.zip
+wget -O sysbench-1.0.18.zip https://github.com/akopytov/sysbench/archive/1.0.18.zip
+unzip -q sysbench-1.0.18.zip
 cd sysbench-1.0.18
 
 # 把 zip 自带的旧 LuaJIT（2.1.0-beta2）换成上游 v2.1 最新
@@ -19,7 +19,7 @@ sysbench --version
 
 # 清理 sysbench 构建残留并回到上级目录
 cd ..
-rm -rf sysbench-1.0.18 1.0.18.zip
+rm -rf sysbench-1.0.18 sysbench-1.0.18.zip
 
 # 下载并解压 HammerDB 6.0（Linux 包按 OS 分；CentOS/RHEL 用 RHEL9 包，需 glibc 2.34+ 即 Stream9。
 #   Stream8(glibc 2.28) 跑不了 6.0 prebuilt，得换 4.12 的 generic 包或换 Stream9 机器）
