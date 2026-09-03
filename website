@@ -2,3 +2,10 @@ https://gitcode.com/Operations_Blue/config/blob/main/AI%E7%BD%91%E5%85%B3_openco
 
 
 parametername	parametervalue	unit	context	description
+
+
+export PGPASSWORD="Taurus_123"
+psql -h database-1.cluster-cnq0s48cas7o.ap-southeast-1.rds.amazonaws.com -U root -d postgres \
+  --csv \
+  -c "SELECT name AS parametername, setting AS parametervalue, unit, context, short_desc AS description FROM pg_settings ORDER BY name;" \
+  > r5_32u.csv
